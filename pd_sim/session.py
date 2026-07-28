@@ -64,7 +64,7 @@ class Session:
         assert self._sim
         return self._sim.console
 
-    def wait_for(self, pattern: str, timeout: float = 20.0) -> bool:
+    def wait_for(self, pattern: str, timeout: float = 60.0) -> bool:
         assert self._sim
         return self._sim.wait_for(pattern, timeout)
 
@@ -155,7 +155,7 @@ class Session:
         assert self._window
         return tilt(x, y, self._display.name, self._window)
 
-    def await_file(self, path: str | Path, timeout: float = 15.0) -> Path:
+    def await_file(self, path: str | Path, timeout: float = 60.0) -> Path:
         """Wait for a file the GAME writes — a screenshot, an exported state.
 
         Screenshots come from inside the game (`playdate.simulator.writeToFile`), not

@@ -95,7 +95,16 @@ def _geometry(window: str, display: str) -> tuple[int, int, int, int]:
             int(values["WIDTH"]), int(values["HEIGHT"]))
 
 
-def find_window(display: str, timeout: float = 15.0) -> str:
+# Startup is far slower on a CI runner than on a developer machine: measured at ~26s
+# from launch to "Loading:" on a GitHub runner, against ~3s locally. Timeouts here are
+# generous on purpose — they cost nothing when things work, and when they are too tight
+# the failure is not "timed out" but something much more confusing. A short window
+# timeout in particular means falling back to the 10x10 decoy, and then every mouse
+# coordinate is silently wrong.
+WINDOW_TIMEOUT = 90.0
+
+
+def find_window(display: str, timeout: float = WINDOW_TIMEOUT) -> str:
     """The Simulator's window id, once it exists.
 
     It maps TWO windows matching "Playdate": a 10x10 helper and the real one. Two

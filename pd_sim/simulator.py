@@ -30,7 +30,7 @@ from pathlib import Path
 # audio stack complains about. None of it is the game, and all of it drowns the game.
 NOISE = re.compile(
     r"pw\.conf|pipewire|\[sentry\]|crashpad|file_io_posix|process_reader|"
-    r"http_transport|libGL|dbus|Soapbox|SDL2|GTK|gtk"
+    r"http_transport|libGL|dbus|dbind|AT-SPI|org\.a11y|Soapbox|SDL2|GTK|gtk"
 )
 
 # A Lua error surfaces as these. "simulator paused" is the decisive one: the Simulator
@@ -169,7 +169,7 @@ class Simulator:
             "On Debian/Ubuntu the one most often missing is libwebkit2gtk-4.1-0."
         )
 
-    def wait_for(self, pattern: str, timeout: float = 20.0) -> bool:
+    def wait_for(self, pattern: str, timeout: float = 60.0) -> bool:
         """Block until the console matches, or a Lua error makes waiting pointless.
 
         Returning early on failure is the difference between a 2-second red build and

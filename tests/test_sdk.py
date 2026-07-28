@@ -52,7 +52,7 @@ def test_a_clean_game_runs_and_prints(tmp_path):
         function playdate.update() end
     ''')
     with Session(pdx, interactive=False) as sim:
-        assert sim.wait_for("READY", timeout=30), sim.console
+        assert sim.wait_for("READY", timeout=90), sim.console
         result = sim.finish()
     assert result.booted
     assert not result.failed
@@ -73,7 +73,7 @@ def test_a_runtime_error_fails_the_run(tmp_path):
         end
     ''')
     with Session(pdx, interactive=False) as sim:
-        sim.run_for(12)
+        sim.run_for(20)
         result = sim.finish()
     assert result.failed, result.console
     assert "stack traceback" in result.traceback
@@ -93,7 +93,7 @@ def test_every_button_arrives(tmp_path):
         end
     ''')
     with Session(pdx) as sim:
-        assert sim.wait_for("READY", timeout=30), sim.console
+        assert sim.wait_for("READY", timeout=90), sim.console
         sim.press("a", "b", "up", "down", "left", "right")
         sim.run_for(2)
         console = sim.console
@@ -115,7 +115,7 @@ def test_the_crank_turns_and_undocks(tmp_path):
         end
     ''')
     with Session(pdx) as sim:
-        assert sim.wait_for("READY", timeout=30), sim.console
+        assert sim.wait_for("READY", timeout=90), sim.console
         turned = sim.crank(40)
         sim.run_for(2)
         console = sim.console
@@ -142,7 +142,7 @@ def test_a_screenshot_comes_back(tmp_path):
         end
     ''')
     with Session(pdx, interactive=False) as sim:
-        written = sim.await_file(shot, timeout=30)
+        written = sim.await_file(shot, timeout=90)
         sim.finish()
 
     assert written.exists()
@@ -185,7 +185,7 @@ def test_console_streams_while_running(tmp_path):
         end
     ''')
     with Session(pdx, interactive=False) as sim:
-        assert sim.wait_for("TICK 30", timeout=20), "nothing streamed: " + sim.console
+        assert sim.wait_for("TICK 30", timeout=90), "nothing streamed: " + sim.console
         sim.finish()
 
 
@@ -223,7 +223,7 @@ def test_values_reach_a_running_game(tmp_path, monkeypatch):
     shutil.rmtree(data, ignore_errors=True)
 
     with Session(pdx, interactive=False) as sim:
-        assert sim.wait_for("READY", timeout=30), sim.console
+        assert sim.wait_for("READY", timeout=90), sim.console
         sim.send("set 2.cut 0.4")
         assert sim.wait_for(r"SET 2\.cut=0\.4", timeout=15), sim.console
         sim.send("set 2.cut 0.9")
@@ -255,7 +255,7 @@ def test_the_device_can_be_tilted(tmp_path):
         return float(pairs["x"]), float(pairs["y"])
 
     with Session(pdx) as sim:
-        assert sim.wait_for("READY", timeout=30), sim.console
+        assert sim.wait_for("READY", timeout=90), sim.console
 
         sim.tilt(0.5, 0)
         sim.run_for(1.5)

@@ -124,4 +124,11 @@ class VirtualDisplay:
 
     def env(self) -> dict[str, str]:
         """Environment for a child that should draw here, with audio stubbed."""
-        return {**os.environ, "DISPLAY": self.name, "SDL_AUDIODRIVER": "dummy"}
+        return {
+            **os.environ,
+            "DISPLAY": self.name,
+            "SDL_AUDIODRIVER": "dummy",
+            # No accessibility bus on a CI runner, and GTK complains loudly about it
+            # on every launch. Not an error, but it lands in the console we parse.
+            "NO_AT_BRIDGE": "1",
+        }
