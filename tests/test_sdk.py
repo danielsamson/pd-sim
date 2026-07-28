@@ -229,3 +229,49 @@ def test_values_reach_a_running_game(tmp_path, monkeypatch):
         sim.send("set 2.cut 0.9")
         assert sim.wait_for(r"SET 2\.cut=0\.9", timeout=15), sim.console
         sim.finish()
+
+
+def test_the_device_can_be_tilted(tmp_path):
+    """The accelerometer, driven by its dial and verified by the game's own reading.
+
+    Asserting on readAccelerometer() rather than on what tilt() returns is the point:
+    the dial is a UI widget, so the only honest confirmation is the number the game
+    sees. Loose tolerances — this is a mouse drag on a dial, not an API.
+    """
+    pdx = build(tmp_path, '''
+        import "CoreLibs/graphics"
+        playdate.startAccelerometer()
+        print("READY")
+        function playdate.update()
+            local x, y, z = playdate.readAccelerometer()
+            if x then print(string.format("ACCEL x=%.3f y=%.3f", x, y)) end
+        end
+    ''', name="tilt")
+
+    def latest(console):
+        rows = [l for l in console.splitlines() if l.startswith("ACCEL")]
+        assert rows, f"the game never read the accelerometer:\n{console}"
+        pairs = dict(kv.split("=") for kv in rows[-1].replace("ACCEL ", "").split())
+        return float(pairs["x"]), float(pairs["y"])
+
+    with Session(pdx) as sim:
+        assert sim.wait_for("READY", timeout=30), sim.console
+
+        sim.tilt(0.5, 0)
+        sim.run_for(1.5)
+        x_right, _ = latest(sim.console)
+
+        sim.tilt(-0.5, 0)
+        sim.run_for(1.5)
+        x_left, _ = latest(sim.console)
+
+        sim.tilt(0, 0.5)
+        sim.run_for(1.5)
+        _, y_down = latest(sim.console)
+        sim.finish()
+
+    # Direction is what matters, and that the two ends are distinct and signed.
+    assert x_right > 0.25, f"tilting right gave x={x_right}"
+    assert x_left < -0.25, f"tilting left gave x={x_left}"
+    assert x_right - x_left > 0.6, "the two extremes are not far enough apart"
+    assert y_down > 0.25, f"tilting down gave y={y_down}"

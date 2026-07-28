@@ -16,7 +16,7 @@ from pathlib import Path
 
 from .channel import DEFAULT_CMD_FILE, data_dir, send
 from .display import VirtualDisplay
-from .keys import InputError, crank, find_window, focus, menu, press
+from .keys import InputError, crank, find_window, focus, menu, press, tilt
 from .simulator import RunResult, Simulator, sdk_path
 
 
@@ -142,6 +142,18 @@ class Session:
         )
         self._artifacts.append(target)
         return target
+
+    def tilt(self, x: float, y: float) -> tuple[float, float]:
+        """Tilt the device — accelerometer readings in g, roughly -1..1.
+
+        `tilt(0, 1)` is upright, `tilt(1, 0)` is on its right edge. Drags the
+        Simulator's accelerometer dial, so it is approximate: assert on the game's own
+        readAccelerometer(), not on the value returned here. The game must have called
+        playdate.startAccelerometer() — it is off by default, on device and here.
+        """
+        self._require_interactive()
+        assert self._window
+        return tilt(x, y, self._display.name, self._window)
 
     def await_file(self, path: str | Path, timeout: float = 15.0) -> Path:
         """Wait for a file the GAME writes — a screenshot, an exported state.

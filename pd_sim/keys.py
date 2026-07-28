@@ -48,6 +48,25 @@ WHEEL_FORWARD, WHEEL_BACK = "4", "5"
 # The real window is ~482x706; the decoy is 10x10. Anything above this is the game.
 MIN_WINDOW_AREA = 10_000
 
+# The accelerometer dial, as fractions of the window. MEASURED, by dragging and
+# reading the values back out of a probe game — which is the only way to get these
+# right, and the reason they are trustworthy: a drag lands where the game says it
+# lands, not where a screenshot looked like it should.
+#
+#   deflection  ->  reading        (both axes, linear)
+#     0.25r          0.118
+#     0.50r          0.265
+#     0.75r          0.397
+#     1.00r          0.544
+#
+# The centre is 0.8435 down, not 0.871: dragging to the latter reads y=+0.279, i.e.
+# half a radius low. That discrepancy is exactly why this is calibrated against the
+# game's own numbers instead of eyeballed off an image.
+ACCEL_CENTRE_X = 0.207          # of window width
+ACCEL_CENTRE_Y = 0.8435         # of window height
+ACCEL_RADIUS = 0.055            # of window height
+ACCEL_GAIN = 0.55               # g per full-radius deflection
+
 SETTLE = 0.3        # after focusing, before the first key
 HOLD = 0.05         # keydown -> keyup, long enough for one frame at 30fps
 GAP = 0.12          # between presses, so buttonJustPressed sees distinct edges
@@ -165,3 +184,49 @@ def crank(degrees: float, display: str, window: str) -> float:
         time.sleep(0.08)
     turned = clicks * CRANK_DEGREES_PER_CLICK
     return turned if degrees >= 0 else -turned
+
+
+def tilt(x: float, y: float, display: str, window: str) -> tuple[float, float]:
+    """Tilt the device by dragging the Simulator's accelerometer dial.
+
+    `x` and `y` are accelerometer readings in g, roughly -1..1: `tilt(0, 1)` is
+    upright, `tilt(1, 0)` is on its right edge. Returns what was requested clamped to
+    what the dial can actually reach.
+
+    This is a UI widget, so it is approximate — the game's own `readAccelerometer()`
+    is the truth, and a test should assert on that rather than on this return value.
+    The mapping is linear at ACCEL_GAIN per radius; see the constants above for the
+    measurements.
+
+    There is no keyboard route to this, and no gesture: an earlier attempt found a
+    ctrl-drag that moved the values once and never again. The dial was there the whole
+    time. Capture the window before hunting for a shortcut.
+    """
+    wx, wy, width, height = _geometry(window, display)
+    radius = height * ACCEL_RADIUS
+    centre_x = wx + int(width * ACCEL_CENTRE_X)
+    centre_y = wy + int(height * ACCEL_CENTRE_Y)
+
+    # Clamp to the dial: past a full radius it stops tracking, so asking for more
+    # silently gives less. Report what was actually asked for.
+    limit = ACCEL_GAIN
+    x = max(-limit, min(limit, x))
+    y = max(-limit, min(limit, y))
+
+    target_x = centre_x + int(x / ACCEL_GAIN * radius)
+    target_y = centre_y + int(y / ACCEL_GAIN * radius)
+
+    focus(window, display)
+    _xdotool("mousemove", str(centre_x), str(centre_y), display=display)
+    time.sleep(0.15)
+    _xdotool("mousedown", "1", display=display)
+    time.sleep(0.15)
+    steps = 6
+    for i in range(1, steps + 1):
+        _xdotool("mousemove",
+                 str(centre_x + (target_x - centre_x) * i // steps),
+                 str(centre_y + (target_y - centre_y) * i // steps), display=display)
+        time.sleep(0.08)
+    _xdotool("mouseup", "1", display=display)
+    time.sleep(GAP)
+    return (x, y)

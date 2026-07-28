@@ -44,7 +44,13 @@ Do not describe pd-sim as replacing either neighbour. It is x86 running an inter
 | crank | mouse wheel over the window, 4°/click; the first turn undocks |
 | Lock | the Simulator UI has a LOCK button — reachable by click, not wired |
 | values | command file in the game's Data dir — needs the game to poll |
-| accelerometer | READS fine headless; the UI has a tilt widget — reachable by drag, not wired |
+| accelerometer | `tilt(x, y)` — drags the UI dial; game must call startAccelerometer() |
+
+**Calibrate against the game, not against the drag.** `tilt()` exists because a window
+capture revealed an accelerometer dial, and its constants come from dragging and
+reading `readAccelerometer()` back. That feedback loop caught a centre that was half a
+radius off — an error no amount of looking at the image would have found. Do the same
+for Lock and the crank field.
 
 **Capture the window before guessing at any of this.** `sim.screenshot()` shows the
 Simulator's whole UI, and it contains, at known positions: a LOCK button, a MENU
@@ -52,10 +58,9 @@ button, a crank NUMBER FIELD with -/+ and a Docked checkbox, and an acceleromete
 tilt widget. It also prints the key map on the buttons themselves (`A` under B, `S`
 under A), which is how the measured map can be confirmed rather than inferred.
 
-That supersedes earlier guesswork here: a ctrl-drag once moved the accelerometer and
-never reproduced, which sent me looking for a gesture when there is a widget. Clicking
-the crank field is also strictly better than counting mouse-wheel clicks. Neither is
-wired up yet — do that from the screenshot, not from experiment.
+The accelerometer is now done that way. Lock and the crank number field are not, and
+both are strictly better than what they would replace — an exact crank value beats
+counting mouse-wheel clicks. Do them from the capture, not from experiment.
 
 `tests/test_sdk.py` re-measures this against a real Simulator, so a rebinding fails a
 test rather than silently breaking downstream suites. Keep it that way.

@@ -104,7 +104,7 @@ with Session("game.pdx") as sim:
 | Lock | — | no known input; not simulated |
 | Lock | not wired yet | the Simulator has a LOCK button in its UI — reachable, not implemented |
 | values | the command file | `set 2.cut 0.4` — **needs the game to poll** |
-| accelerometer | not wired yet | **reads** fine headless; the Simulator has a tilt widget — reachable, not implemented |
+| accelerometer | the tilt dial | `tilt(x, y)` in g; the game must call `startAccelerometer()` |
 
 All of it is measured against Simulator 3.1.1, not documented — `pd-sim keys` prints
 the map, and `tests/test_hardware.py` re-measures it, so a Simulator update that
@@ -132,22 +132,37 @@ and in exchange it can say anything.
 The Data directory works in both directions: `sim.data_dir` is also where the game's
 saves and exports land.
 
-### The accelerometer, precisely
+### The accelerometer
 
-`playdate.startAccelerometer()` works in a headless Simulator and
-`readAccelerometer()` returns a real upright reading, so a game that *reads* tilt runs
-fine and can be tested for everything except its response to motion.
+```python
+sim.tilt(0.5, 0)     # onto its right edge; x and y are readings in g
+```
 
-Changing the value is unfinished, and the honest state is: it happened once. A
-ctrl-drag across the device body moved it from `x=0.000 y=1.000` to `x=0.906
-y=-0.424` — unmistakably a tilt. Repeating that same gesture in isolation does
-nothing, twice over, and neither do plain, shift or alt drags. The one success came
-after three other drags, so something stateful is likely involved that has not been
-identified.
+The game must call `playdate.startAccelerometer()` — it is off by default, here and
+on the device.
 
-Until there is a gesture that works every time, there is no `tilt()` here. An input
-method that works one attempt in five is worse than none: it turns every failure into
-a question about the harness rather than the game.
+This one is worth reading as a method, because the first two attempts were wrong. I
+went hunting for a keyboard shortcut, then for a modifier-drag gesture; a ctrl-drag
+moved the values exactly once and never again, which cost an hour and produced
+nothing. Then a window capture showed the Simulator has **an accelerometer dial in its
+UI**, sitting there the whole time.
+
+The dial is then calibrated against the game's own `readAccelerometer()`, which is the
+only trustworthy way to place a mouse on a widget:
+
+| deflection | reading |
+|---|---|
+| 0.25r | 0.118 |
+| 0.50r | 0.265 |
+| 0.75r | 0.397 |
+| 1.00r | 0.544 |
+
+Linear, at ~0.55g per radius. It also caught an error no screenshot would have: the
+dial's true centre is at 84.35% of window height, not the 87% it looks like — dragging
+to the eyeballed spot reads `y=+0.279`, half a radius low.
+
+**Capture the window before hunting for a shortcut**, and calibrate against what the
+game reports rather than what the drag intended.
 
 ## Two things that cost real time
 
