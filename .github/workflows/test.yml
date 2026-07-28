@@ -15,6 +15,11 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # A hard ceiling. Timeouts inside the suite are deliberately generous — a runner is
+    # ~10x slower to boot the Simulator than a dev machine — but generous timeouts turn
+    # a hang into a 6-hour job at the default limit. Bound it here so a stuck run costs
+    # minutes, not a billing incident.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
 
@@ -57,4 +62,13 @@ jobs:
       # without a device — is only true if these pass, so they are not optional here
       # even though they are deselected by default locally.
       - name: The Simulator runs headless, and answers
-        run: python3 -m pytest -q -m "sdk or not sdk"
+        env:
+          # Without this the job shows NOTHING for its entire duration: pytest's output
+          # is block-buffered when stdout is a pipe, which on Actions it always is. The
+          # same buffering rule that hides the Simulator's console hides the test
+          # runner's, and a silent 15-minute step is indistinguishable from a hung one.
+          PYTHONUNBUFFERED: "1"
+        # -v so each test reports as it finishes rather than as a dot at the end, and
+        # --durations so the slowest are named -- this suite is dominated by Simulator
+        # startup and it is worth seeing where.
+        run: python3 -u -m pytest -v --durations=10 -m "sdk or not sdk"
