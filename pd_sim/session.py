@@ -8,12 +8,16 @@
 
 from __future__ import annotations
 
+import os
+import shutil
+import subprocess
 import time
 from pathlib import Path
 
+from .channel import DEFAULT_CMD_FILE, data_dir, send
 from .display import VirtualDisplay
 from .keys import crank, find_window, focus, menu, press
-from .simulator import RunResult, Simulator
+from .simulator import RunResult, Simulator, sdk_path
 
 
 class Session:
@@ -89,6 +93,50 @@ class Session:
         self._require_interactive()
         assert self._window
         return crank(degrees, self._display.name, self._window)
+
+    def send(self, command: str, cmd_file: str = DEFAULT_CMD_FILE) -> None:
+        """Send a command line to the running game — the way to pass VALUES.
+
+        `press("a")` can only press a button; this can say `set 2.cut 0.4`. It needs
+        the game to poll its command file (bridge.lua does), and in exchange it is
+        deterministic: no focus, no window, no key map, no timing. Prefer it whenever
+        both would work.
+        """
+        send(command, self.pdx, sdk_path(), cmd_file)
+
+    @property
+    def data_dir(self) -> Path:
+        """The game's Data directory — where its saves and exports land, and where the
+        command file goes. Useful in both directions."""
+        return data_dir(self.pdx, sdk_path())
+
+    def screenshot(self, path: str | Path) -> Path:
+        """Capture the Simulator WINDOW — works on any .pdx, no cooperation at all.
+
+        This is the zero-cooperation option and it is not the exact framebuffer: you
+        get the whole window, chrome included (the device body, the d-pad, the crank
+        widget), at whatever zoom the Simulator is using. Good for "did it draw
+        anything", for eyeballing a run, and for a CI artifact on failure.
+
+        When you want the game's actual 400x240 output — for comparing against a
+        golden, or measuring anything — have the game call
+        `playdate.simulator.writeToFile` and use `await_file` instead. That is the
+        difference between the game's output and a photograph of a monitor.
+        """
+        if not shutil.which("import"):
+            raise RuntimeError(
+                "ImageMagick's `import` not installed — apt-get install -y imagemagick. "
+                "(Or have the game call playdate.simulator.writeToFile and use await_file.)"
+            )
+        window = self._window or find_window(self._display.name)
+        target = Path(path)
+        subprocess.run(
+            ["import", "-window", window, str(target)],
+            env={"DISPLAY": self._display.name, "PATH": os.environ.get("PATH", "/usr/bin:/bin")},
+            check=True, capture_output=True, timeout=30,
+        )
+        self._artifacts.append(target)
+        return target
 
     def await_file(self, path: str | Path, timeout: float = 15.0) -> Path:
         """Wait for a file the GAME writes — a screenshot, an exported state.

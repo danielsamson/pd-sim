@@ -19,6 +19,7 @@ What it is NOT: a substitute for hardware. It is x86 running an interpreter, not
 exist only on the device. See pd-link for that half.
 """
 
+from .channel import ChannelError, data_dir, send
 from .display import DisplayError, VirtualDisplay
 from .keys import KEYMAP, InputError
 from .session import Session
@@ -26,4 +27,4 @@ from .simulator import RunResult, Simulator
 
 __version__ = "0.1.0"
 __all__ = ["Session", "Simulator", "RunResult", "VirtualDisplay",
-           "KEYMAP", "DisplayError", "InputError"]
+           "KEYMAP", "DisplayError", "InputError", "ChannelError", "send", "data_dir"]

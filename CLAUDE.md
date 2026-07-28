@@ -17,8 +17,12 @@ Do not describe pd-sim as replacing either neighbour. It is x86 running an inter
 - **A window manager is required**, not just Xvfb. Without a focus model
   `XSetInputFocus` fails with `BadMatch` and SDL reads no keyboard — the Simulator runs,
   renders and prints perfectly while ignoring every keystroke.
-- **Injection must use XTEST** (`xdotool key`, no `--window`). SDL ignores synthetic
-  XSendEvent keys by design; they vanish with no error.
+- **Focus is the whole game for input.** With focus, both `xdotool key` (XTEST) and
+  `key --window` (XSendEvent) work. An earlier version of this file claimed SDL ignores
+  synthetic events — that was wrong, and it mattered because it sent the blame to the
+  event type rather than to the missing WM.
+- **For VALUES, use the command file, not keystrokes** (`channel.py`). Deterministic,
+  carries arguments, no focus involved. Keystrokes are the zero-cooperation tier.
 - **stdout must be a PTY.** The Simulator's stdio is fully buffered when stdout is not a
   terminal, so over a plain pipe nothing arrives until it exits — and it does not exit.
 - **Two windows match "Playdate".** A 10×10 decoy maps FIRST, then the real ~482×706
@@ -38,14 +42,20 @@ Do not describe pd-sim as replacing either neighbour. It is x86 running an inter
 | A / B | `s` / `a` — backwards-looking, because they mirror the device where B is left of A |
 | Menu | `Escape` — fires `gameWillPause` and **stops the update loop** until sent again |
 | crank | mouse wheel over the window, 4°/click; the first turn undocks |
-| Lock | no known input |
-| accelerometer | READS fine headless; tilting it is reachable but not reproducible |
+| Lock | the Simulator UI has a LOCK button — reachable by click, not wired |
+| values | command file in the game's Data dir — needs the game to poll |
+| accelerometer | READS fine headless; the UI has a tilt widget — reachable by drag, not wired |
 
-On the accelerometer: a ctrl-drag once moved it from `x=0 y=1` to `x=0.906 y=-0.424`,
-and the identical gesture in isolation has never worked since. The one success followed
-three other drags, so suspect Simulator state rather than the gesture. Do not ship a
-`tilt()` until it is reliable — a flaky input turns every downstream failure into a
-question about the harness instead of the game.
+**Capture the window before guessing at any of this.** `sim.screenshot()` shows the
+Simulator's whole UI, and it contains, at known positions: a LOCK button, a MENU
+button, a crank NUMBER FIELD with -/+ and a Docked checkbox, and an accelerometer
+tilt widget. It also prints the key map on the buttons themselves (`A` under B, `S`
+under A), which is how the measured map can be confirmed rather than inferred.
+
+That supersedes earlier guesswork here: a ctrl-drag once moved the accelerometer and
+never reproduced, which sent me looking for a gesture when there is a widget. Clicking
+the crank field is also strictly better than counting mouse-wheel clicks. Neither is
+wired up yet — do that from the screenshot, not from experiment.
 
 `tests/test_sdk.py` re-measures this against a real Simulator, so a rebinding fails a
 test rather than silently breaking downstream suites. Keep it that way.

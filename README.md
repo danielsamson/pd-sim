@@ -13,6 +13,26 @@ pd-sim keys                                          # the button -> keystroke m
 
 `run` exits non-zero when the game raises a Lua error, so it is a test as it stands.
 
+## Does it need a cooperating game?
+
+**Almost none of it.** On any `.pdx`, with zero cooperation:
+
+- run it, and tell whether it booted and stayed up
+- catch a Lua error, with the traceback
+- capture the game's `print()` output
+- press every button, turn the crank, open the menu
+- screenshot the Simulator window
+
+Two things need the game's help, and both have a no-cooperation alternative:
+
+| want | zero cooperation | with cooperation |
+|---|---|---|
+| a picture | `--shot` — the window, chrome and all | `--await` — the exact 400×240 framebuffer, via one `writeToFile` line |
+| send a value | — (buttons only) | `--send "set 2.cut 0.4"` — the game polls a command file |
+
+So a random `.pdx` you did not write is testable for boot, crashes, input handling and
+appearance. A game you *do* control additionally gets exact frames and scripted values.
+
 ## Why
 
 `pdc` proves a file **compiles**. Nothing short of hardware proved it **runs** — so a
@@ -82,11 +102,35 @@ with Session("game.pdx") as sim:
 | Menu | `Escape` | fires `gameWillPause`; **the game stops updating** until sent again |
 | crank | mouse wheel | 4° per click; the first turn also undocks it |
 | Lock | — | no known input; not simulated |
-| accelerometer | partial | **reads** fine headless (`x=0 y=1 z=0`, upright). Tilting it is reachable but not yet reproducible — see below |
+| Lock | not wired yet | the Simulator has a LOCK button in its UI — reachable, not implemented |
+| values | the command file | `set 2.cut 0.4` — **needs the game to poll** |
+| accelerometer | not wired yet | **reads** fine headless; the Simulator has a tilt widget — reachable, not implemented |
 
 All of it is measured against Simulator 3.1.1, not documented — `pd-sim keys` prints
 the map, and `tests/test_hardware.py` re-measures it, so a Simulator update that
 changes a binding fails a test instead of silently breaking every suite downstream.
+
+### Sending values, not just buttons
+
+A keystroke can press A. It cannot say `set 2.cut 0.4`. For that the Simulator has a
+better channel than input injection — the game's Data directory:
+
+```sh
+pd-sim run game.pdx --send "preset eno" --send "set 2.cut 0.4"
+```
+
+The host appends a line to `SDK/Disk/Data/<bundleID>/<cmdfile>`; the game polls it each
+frame and runs it. That is the convention [bridge.lua](https://github.com/danielsamson/pd-link)
+standardizes, and what `pd-link serve` already uses to drive a Simulator.
+
+**Prefer it over `press()` wherever both would work.** It is deterministic — no focus,
+no window, no key map, no timing — and it carries arguments, so one call sets a value
+exactly instead of pressing a button eleven times and hoping. The trade is pd-link's
+own: keystrokes work on any `.pdx` with no cooperation; this needs the game to poll,
+and in exchange it can say anything.
+
+The Data directory works in both directions: `sim.data_dir` is also where the game's
+saves and exports land.
 
 ### The accelerometer, precisely
 
@@ -105,14 +149,14 @@ Until there is a gesture that works every time, there is no `tilt()` here. An in
 method that works one attempt in five is worse than none: it turns every failure into
 a question about the harness rather than the game.
 
-## Three things that cost real time
+## Two things that cost real time
 
-- **Injection must use XTEST, not `xdotool key --window`.** SDL ignores synthetic
-  XSendEvent keys by design, so keys sent that way vanish with no error anywhere.
-- **A window manager is required.** Xvfb alone has no focus model, `XSetInputFocus`
-  fails with `BadMatch`, and SDL only reads a focused window's keyboard. Without one
-  the Simulator runs, renders and prints perfectly while ignoring every keystroke —
-  which reads like input injection being impossible rather than a missing package.
+- **A window manager is required** — this is the one that matters. Xvfb alone has no
+  focus model, `XSetInputFocus` fails with `BadMatch`, and SDL only reads a focused
+  window's keyboard. Without one the Simulator runs, renders and prints perfectly while
+  ignoring every keystroke, which reads like input injection being impossible rather
+  than a missing package. (Once focused, both `xdotool key` and `key --window` work —
+  an earlier version of this file blamed the event type, which was wrong.)
 - **The Simulator maps two windows named "Playdate".** One is a 10×10 helper. Take the
   first match and every mouse coordinate you compute is nonsense; pick by area.
 

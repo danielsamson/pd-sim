@@ -7,6 +7,8 @@ running it revealed.
 
 from __future__ import annotations
 
+import pytest
+
 from pd_sim.simulator import FAILURE, NOISE, RunResult
 
 CRASH = """22:04:17: Loading: /tmp/probe.pdx/
@@ -60,3 +62,40 @@ def test_noise_does_not_eat_a_traceback():
     traceback line, every crash would silently pass."""
     kept = [ln for ln in CRASH.splitlines() if not NOISE.search(ln)]
     assert any(FAILURE.search(ln) for ln in kept)
+
+
+# -- the command channel ------------------------------------------------------
+
+def test_bundle_id_comes_from_the_pdx(tmp_path):
+    """It names the Data directory. Guess it wrong and the command file lands where
+    nobody reads it — with no error from anywhere."""
+    from pd_sim.channel import ChannelError, bundle_id, data_dir
+
+    pdx = tmp_path / "g.pdx"
+    pdx.mkdir()
+    (pdx / "pdxinfo").write_text(
+        "name=g\nauthor=a\nbundleID=com.example.game\nversion=1.0\n"
+    )
+    assert bundle_id(pdx) == "com.example.game"
+    assert data_dir(pdx, tmp_path / "sdk").name == "com.example.game"
+
+    bare = tmp_path / "bare.pdx"
+    bare.mkdir()
+    with pytest.raises(ChannelError):
+        bundle_id(bare)
+
+
+def test_commands_append_rather_than_overwrite(tmp_path):
+    """The game consumes the file at its own polling rate. A second command written a
+    moment later must QUEUE, not erase one that has not been read yet."""
+    from pd_sim.channel import send
+
+    pdx = tmp_path / "g.pdx"
+    pdx.mkdir()
+    (pdx / "pdxinfo").write_text("bundleID=com.example.game\n")
+    sdk = tmp_path / "sdk"
+
+    send("preset eno", pdx, sdk)
+    path = send("set 2.cut 0.4", pdx, sdk)
+
+    assert path.read_text() == "preset eno\nset 2.cut 0.4\n"

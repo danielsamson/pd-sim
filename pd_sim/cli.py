@@ -32,6 +32,13 @@ def _run(args: argparse.Namespace) -> int:
         for button in buttons:
             sim.press(button)
 
+        for command in (args.send or []):
+            sim.send(command, cmd_file=args.cmd_file)
+
+        if args.shot:
+            sim.run_for(1)
+            print(f"wrote {sim.screenshot(args.shot)}", file=sys.stderr)
+
         if args.await_file:
             try:
                 written = sim.await_file(args.await_file, timeout=args.seconds)
@@ -81,6 +88,14 @@ def main(argv: list[str] | None = None) -> int:
                      help="finish as soon as the console matches this")
     run.add_argument("--await", dest="await_file", metavar="PATH",
                      help="wait for a file the game writes (e.g. a screenshot)")
+    run.add_argument("--send", action="append", metavar="COMMAND",
+                     help="a command line for the game to poll (repeatable). Carries "
+                          "VALUES, unlike --press; needs the game to poll its command file")
+    run.add_argument("--cmd-file", default="mcp_cmd.txt",
+                     help="the file the game polls (bridge.lua default: mcp_cmd.txt)")
+    run.add_argument("--shot", metavar="PATH",
+                     help="capture the Simulator window (any .pdx, no cooperation; "
+                          "includes chrome). For the exact framebuffer use --await")
     run.add_argument("--console", action="store_true", help="print the game's output")
     run.set_defaults(func=_run)
 

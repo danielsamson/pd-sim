@@ -187,3 +187,45 @@ def test_console_streams_while_running(tmp_path):
     with Session(pdx, interactive=False) as sim:
         assert sim.wait_for("TICK 30", timeout=20), "nothing streamed: " + sim.console
         sim.finish()
+
+
+def test_values_reach_a_running_game(tmp_path, monkeypatch):
+    """The command channel, end to end. This is what keystrokes cannot do: a value.
+
+    Modelled on GrainShift's `remote.sh sim "set 2.cut 0.4"`, which is where this
+    convention came from — the host appends, the game polls, no focus involved.
+    """
+    monkeypatch.setenv("PLAYDATE_SDK_PATH", str(sdk_path()))
+    pdx = build(tmp_path, '''
+        import "CoreLibs/graphics"
+        local cut = 0.0
+        local frame = 0
+        print("READY")
+        local function poll()
+            local f = playdate.file.open("mcp_cmd.txt", playdate.file.kFileRead)
+            if not f then return end
+            local line = f:readline()
+            while line do
+                local k, v = line:match("^set%s+(%S+)%s+(%S+)$")
+                if k then cut = tonumber(v) or cut; print("SET " .. k .. "=" .. tostring(cut)) end
+                line = f:readline()
+            end
+            f:close()
+            playdate.file.delete("mcp_cmd.txt")
+        end
+        function playdate.update()
+            frame = frame + 1
+            if frame % 15 == 0 then poll() end
+        end
+    ''', name="chan")
+
+    data = sdk_path() / "Disk" / "Data" / "com.test.chan"
+    shutil.rmtree(data, ignore_errors=True)
+
+    with Session(pdx, interactive=False) as sim:
+        assert sim.wait_for("READY", timeout=30), sim.console
+        sim.send("set 2.cut 0.4")
+        assert sim.wait_for(r"SET 2\.cut=0\.4", timeout=15), sim.console
+        sim.send("set 2.cut 0.9")
+        assert sim.wait_for(r"SET 2\.cut=0\.9", timeout=15), sim.console
+        sim.finish()
