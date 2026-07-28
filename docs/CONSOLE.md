@@ -110,6 +110,14 @@ of the protocol, and a third convention is how these drift apart.
 That is also the honest fix for macOS: it sidesteps the console entirely, and it is a
 better answer than the console for anything that needs an answer rather than a log.
 
+**This now exists**, built to exactly that rule — the same `#N` / `[rc#N]` tagging, no
+second scheme. `bridge.lua` gained an `outFile` option: every `[rc]` reply is mirrored
+to a file in the game's Data dir (cleared once per session), and `pd-link sim.exchange`
+(≥ v0.4.6) sends a tagged command and reads its tagged reply back from there. On Linux
+pd-sim still reads the console directly; on macOS, where the console cannot be captured,
+that reply file is the read-back. Both routes share the one convention on purpose, so
+keep them in step — a change to the tag format is a change to both.
+
 ## If it stops working
 
 Verified on SDK **3.1.1**, Linux. If a future Linux build wraps the binary the way
