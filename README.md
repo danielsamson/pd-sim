@@ -100,9 +100,10 @@ with Session("game.pdx") as sim:
 | D-pad | arrow keys | |
 | A / B | `s` / `a` | the letters read backwards — they mirror the device, where B is left of A |
 | Menu | `Escape` | fires `gameWillPause`; **the game stops updating** until sent again |
-| crank | mouse wheel | 4° per click; the first turn also undocks it |
+| crank | `crank(deg)` wheel, or `set_crank(deg)` | typing an exact angle beats 4°-per-click wheel steps |
+| crank dock | `crank_dock()` | the Docked checkbox; toggles |
 | Lock | — | no known input; not simulated |
-| Lock | not wired yet | the Simulator has a LOCK button in its UI — reachable, not implemented |
+| Lock | `lock()` | the UI button; game sees `deviceWillLock` / `deviceDidUnlock`. Toggles |
 | values | the command file | `set 2.cut 0.4` — **needs the game to poll** |
 | accelerometer | the tilt dial | `tilt(x, y)` in g; the game must call `startAccelerometer()` |
 
@@ -163,6 +164,22 @@ to the eyeballed spot reads `y=+0.279`, half a radius low.
 
 **Capture the window before hunting for a shortcut**, and calibrate against what the
 game reports rather than what the drag intended.
+
+### Widget coordinates: read them off a capture, and mind the offset
+
+`lock()`, `crank_dock()`, `set_crank()` and `tilt()` all click widgets in the
+Simulator's own UI. Their positions come from a `sim.screenshot()` capture, which is
+the right way to find them — but **capture space is not root space**. A point seen at
+capture *y* needs the pointer 22px higher (`CAPTURE_Y_OFFSET`).
+
+That went unnoticed while only the accelerometer was wired, because a 38px dial
+absorbs a 22px error: it just reads half a radius off. Which is exactly the resting
+`y=+0.279` that got explained away as the dial's centre being somewhere else. It
+wasn't; it was this. A 14px checkbox has no such tolerance — it misses entirely,
+clicking background, with nothing anywhere reporting a thing.
+
+`test_the_widget_offset_is_still_right` pins it, so a window manager theme that
+changes the offset fails one test instead of silently breaking every widget.
 
 ## Two things that cost real time
 

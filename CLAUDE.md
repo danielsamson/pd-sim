@@ -41,8 +41,9 @@ Do not describe pd-sim as replacing either neighbour. It is x86 running an inter
 | D-pad | arrow keys |
 | A / B | `s` / `a` — backwards-looking, because they mirror the device where B is left of A |
 | Menu | `Escape` — fires `gameWillPause` and **stops the update loop** until sent again |
-| crank | mouse wheel over the window, 4°/click; the first turn undocks |
-| Lock | the Simulator UI has a LOCK button — reachable by click, not wired |
+| crank | `crank(deg)` wheel (4°/click), or `set_crank(deg)` for an exact angle |
+| crank dock | `crank_dock()` — the Docked checkbox |
+| Lock | `lock()` — the UI button; deviceWillLock/deviceDidUnlock. Toggles |
 | values | command file in the game's Data dir — needs the game to poll |
 | accelerometer | `tilt(x, y)` — drags the UI dial; game must call startAccelerometer() |
 
@@ -58,9 +59,12 @@ button, a crank NUMBER FIELD with -/+ and a Docked checkbox, and an acceleromete
 tilt widget. It also prints the key map on the buttons themselves (`A` under B, `S`
 under A), which is how the measured map can be confirmed rather than inferred.
 
-The accelerometer is now done that way. Lock and the crank number field are not, and
-both are strictly better than what they would replace — an exact crank value beats
-counting mouse-wheel clicks. Do them from the capture, not from experiment.
+All the widgets are done that way now. **Capture space is offset from root space by
+CAPTURE_Y_OFFSET (22px)** — a click computed straight from a screenshot lands low. The
+accelerometer hid this for a while, because a 38px dial absorbs 22px and merely reads
+wrong; the "dial centre is at 0.8435 not 0.871" note was this offset misattributed. A
+14px checkbox misses outright. Any new widget: read its position off a capture, apply
+the offset, and verify with a probe game that reports the effect.
 
 `tests/test_sdk.py` re-measures this against a real Simulator, so a rebinding fails a
 test rather than silently breaking downstream suites. Keep it that way.

@@ -275,3 +275,69 @@ def test_the_device_can_be_tilted(tmp_path):
     assert x_left < -0.25, f"tilting left gave x={x_left}"
     assert x_right - x_left > 0.6, "the two extremes are not far enough apart"
     assert y_down > 0.25, f"tilting down gave y={y_down}"
+
+
+WIDGET_PROBE = '''
+    import "CoreLibs/graphics"
+    print("READY")
+    function playdate.deviceWillLock() print("EVENT deviceWillLock") end
+    function playdate.deviceDidUnlock() print("EVENT deviceDidUnlock") end
+    function playdate.crankDocked() print("EVENT crankDocked") end
+    function playdate.crankUndocked() print("EVENT crankUndocked") end
+    local frame = 0
+    function playdate.update()
+        frame = frame + 1
+        if frame %% 30 == 0 then
+            print(string.format("STATE crank=%%.1f docked=%%s",
+                playdate.getCrankPosition(), tostring(playdate.isCrankDocked())))
+        end
+    end
+'''
+
+
+def test_the_lock_button_locks_and_unlocks(tmp_path):
+    """Lock is a UI button, not a keystroke — there is no key for it."""
+    pdx = build(tmp_path, WIDGET_PROBE % (), name="lock")
+    with Session(pdx) as sim:
+        assert sim.wait_for("READY", timeout=90), sim.console
+        sim.lock()
+        assert sim.wait_for("deviceWillLock", timeout=20), sim.console
+        sim.lock()
+        assert sim.wait_for("deviceDidUnlock", timeout=20), sim.console
+        sim.finish()
+
+
+def test_the_crank_can_be_docked_and_set_to_an_exact_angle(tmp_path):
+    """Typing the angle beats turning it: the wheel quantises to 4-degree clicks and
+    moves relative to wherever the crank already was."""
+    pdx = build(tmp_path, WIDGET_PROBE % (), name="crankset")
+    with Session(pdx) as sim:
+        assert sim.wait_for("READY", timeout=90), sim.console
+        sim.crank_dock()
+        assert sim.wait_for("crankUndocked", timeout=20), sim.console
+
+        sim.set_crank(90)
+        assert sim.wait_for(r"crank=90\.0", timeout=20), sim.console
+        sim.set_crank(270)
+        assert sim.wait_for(r"crank=270\.0", timeout=20), sim.console
+        sim.finish()
+
+
+def test_the_widget_offset_is_still_right(tmp_path):
+    """Pins CAPTURE_Y_OFFSET.
+
+    Widget coordinates are read off a screenshot, but capture space is offset from
+    root space, so a click computed naively lands ~22px low. A 38px accelerometer dial
+    absorbs that and merely reads wrong; a 14px checkbox misses entirely and reports
+    nothing at all. If a window manager theme changes the offset, this fails here
+    rather than every widget silently missing.
+    """
+    pdx = build(tmp_path, WIDGET_PROBE % (), name="offset")
+    with Session(pdx) as sim:
+        assert sim.wait_for("READY", timeout=90), sim.console
+        sim.crank_dock()
+        assert sim.wait_for("crankUndocked", timeout=20), (
+            "the Docked checkbox was not hit — CAPTURE_Y_OFFSET is probably wrong "
+            f"for this window manager:\n{sim.console}"
+        )
+        sim.finish()

@@ -63,9 +63,29 @@ MIN_WINDOW_AREA = 10_000
 # half a radius low. That discrepancy is exactly why this is calibrated against the
 # game's own numbers instead of eyeballed off an image.
 ACCEL_CENTRE_X = 0.207          # of window width
-ACCEL_CENTRE_Y = 0.8435         # of window height
+ACCEL_CENTRE_Y = 0.871          # of window height, in CAPTURE space
 ACCEL_RADIUS = 0.055            # of window height
 ACCEL_GAIN = 0.55               # g per full-radius deflection
+
+# WIDGET POSITIONS, as fractions of the window, read off a `sim.screenshot()` capture.
+# Read them that way too if they ever need adjusting — the capture is the map.
+LOCK_BUTTON = (0.944, 0.068)
+CRANK_DOCKED = (0.542, 0.725)
+CRANK_FIELD = (0.747, 0.725)
+
+# Capture space is not root space: a point seen at capture y appears CAPTURE_Y_OFFSET
+# pixels lower than where the pointer must go. Measured by sweeping clicks across the
+# Docked checkbox until the game reported the dock changing.
+#
+# It went unnoticed while only the accelerometer was wired, because a 38px dial
+# tolerates a 22px error — it just reads half a radius off, which is exactly the
+# "resting y=+0.279" that got explained away as the dial's centre being elsewhere. It
+# was not; it was this. A 14px checkbox has no such tolerance and misses entirely,
+# clicking empty background with nothing reporting anything.
+#
+# test_the_widget_offset_is_still_right pins it: if a window manager theme changes it,
+# that fails rather than every widget quietly missing.
+CAPTURE_Y_OFFSET = 22
 
 SETTLE = 0.3        # after focusing, before the first key
 HOLD = 0.05         # keydown -> keyup, long enough for one frame at 30fps
@@ -195,6 +215,62 @@ def crank(degrees: float, display: str, window: str) -> float:
     return turned if degrees >= 0 else -turned
 
 
+def _click_widget(fx: float, fy: float, display: str, window: str) -> None:
+    """Click a widget given its position in CAPTURE coordinates."""
+    wx, wy, width, height = _geometry(window, display)
+    focus(window, display)
+    _xdotool("mousemove",
+             str(wx + int(width * fx)),
+             str(wy + int(height * fy) - CAPTURE_Y_OFFSET), display=display)
+    time.sleep(0.15)
+    _xdotool("click", "1", display=display)
+    time.sleep(GAP)
+
+
+def lock(display: str, window: str) -> None:
+    """Press the Simulator's LOCK button — the device lock, not the menu.
+
+    A game observes it through playdate.deviceWillLock / deviceDidUnlock. It toggles,
+    so send it twice to lock and unlock again.
+    """
+    _click_widget(*LOCK_BUTTON, display=display, window=window)
+
+
+def crank_dock_toggle(display: str, window: str) -> None:
+    """Click the Docked checkbox. Toggles; the game sees crankDocked/crankUndocked."""
+    _click_widget(*CRANK_DOCKED, display=display, window=window)
+
+
+def set_crank(degrees: float, display: str, window: str) -> float:
+    """Set the crank to an EXACT angle, by typing into the Simulator's number field.
+
+    Strictly better than turning it with the mouse wheel: that quantises to 4-degree
+    clicks and only moves relative to wherever the crank already was, so putting it at
+    a known angle means tracking state and hoping. This types the number.
+    """
+    degrees = float(degrees) % 360.0
+    wx, wy, width, height = _geometry(window, display)
+    focus(window, display)
+    fx, fy = CRANK_FIELD
+    _xdotool("mousemove",
+             str(wx + int(width * fx)),
+             str(wy + int(height * fy) - CAPTURE_Y_OFFSET), display=display)
+    time.sleep(0.15)
+    # Triple-click selects the field's contents; typing then replaces rather than
+    # appending to whatever is already there.
+    for _ in range(3):
+        _xdotool("click", "1", display=display)
+        time.sleep(0.05)
+    time.sleep(0.2)
+    _xdotool("key", "--clearmodifiers", "ctrl+a", display=display)
+    time.sleep(0.1)
+    _xdotool("type", f"{degrees:.0f}", display=display)
+    time.sleep(0.2)
+    _xdotool("key", "--clearmodifiers", "Return", display=display)
+    time.sleep(GAP)
+    return degrees
+
+
 def tilt(x: float, y: float, display: str, window: str) -> tuple[float, float]:
     """Tilt the device by dragging the Simulator's accelerometer dial.
 
@@ -214,7 +290,7 @@ def tilt(x: float, y: float, display: str, window: str) -> tuple[float, float]:
     wx, wy, width, height = _geometry(window, display)
     radius = height * ACCEL_RADIUS
     centre_x = wx + int(width * ACCEL_CENTRE_X)
-    centre_y = wy + int(height * ACCEL_CENTRE_Y)
+    centre_y = wy + int(height * ACCEL_CENTRE_Y) - CAPTURE_Y_OFFSET
 
     # Clamp to the dial: past a full radius it stops tracking, so asking for more
     # silently gives less. Report what was actually asked for.

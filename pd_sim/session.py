@@ -16,7 +16,8 @@ from pathlib import Path
 
 from .channel import DEFAULT_CMD_FILE, data_dir, send
 from .display import VirtualDisplay
-from .keys import InputError, crank, find_window, focus, menu, press, tilt
+from .keys import (InputError, crank, crank_dock_toggle, find_window, focus,
+                   lock, menu, press, set_crank, tilt)
 from .simulator import RunResult, Simulator, sdk_path
 
 
@@ -142,6 +143,31 @@ class Session:
         )
         self._artifacts.append(target)
         return target
+
+    def lock(self) -> None:
+        """Press LOCK — the device lock, not the menu. The game sees it through
+        playdate.deviceWillLock / deviceDidUnlock. Toggles: send twice to lock and
+        unlock."""
+        self._require_interactive()
+        assert self._window
+        lock(self._display.name, self._window)
+
+    def crank_dock(self) -> None:
+        """Toggle the crank's Docked checkbox — the game sees crankDocked or
+        crankUndocked."""
+        self._require_interactive()
+        assert self._window
+        crank_dock_toggle(self._display.name, self._window)
+
+    def set_crank(self, degrees: float) -> float:
+        """Put the crank at an exact angle, by typing it into the Simulator.
+
+        Prefer this to `crank()` when you want a known position: turning quantises to
+        4-degree wheel clicks and is relative to wherever the crank already was.
+        """
+        self._require_interactive()
+        assert self._window
+        return set_crank(degrees, self._display.name, self._window)
 
     def tilt(self, x: float, y: float) -> tuple[float, float]:
         """Tilt the device — accelerometer readings in g, roughly -1..1.
