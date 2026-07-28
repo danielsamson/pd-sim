@@ -10,7 +10,7 @@ opposite conclusions while both being right.
 | where | console read-back | how |
 |---|---|---|
 | Linux | **works** | run the SDK's `bin/PlaydateSimulator` with stdout on a **pty** |
-| macOS | not programmatically | the `.app` relaunches detached; Window ▸ Console, or use the device |
+| macOS | not the console; use the bridge | the `.app` relaunches detached — `bridge.lua`'s `outFile` + `pd-link sim.exchange` gives tagged read-back instead |
 | device | works | USB serial, natively — see [pd-link](https://github.com/danielsamson/pd-link) |
 
 pd-sim does the Linux one. It is why `pd-sim run game.pdx` can fail a build on a Lua
