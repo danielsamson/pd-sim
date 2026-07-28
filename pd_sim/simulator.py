@@ -148,6 +148,27 @@ class Simulator:
         self._pump()
         return "\n".join(self._seen)
 
+    def diagnosis(self) -> str:
+        """Why nothing is happening, when nothing is happening.
+
+        A Simulator that cannot start — a missing shared library is the usual reason,
+        libwebkit2gtk being the one that catches people — produces no output, maps no
+        window, and does not exit. Every wait then fails with an empty console and no
+        hint, which reads like "headless does not work" rather than "install a package".
+        """
+        raw = self.raw_console.strip()
+        if raw:
+            return raw[-1500:]
+        alive = self._proc is not None and self._proc.poll() is None
+        state = "still running" if alive else f"exited ({self._proc.returncode if self._proc else '?'})"
+        return (
+            f"the Simulator printed NOTHING and is {state}.\n"
+            "Usually a missing shared library — it links GTK/WebKit, and without them "
+            "it neither prints nor exits. Check with:\n"
+            f"    ldd {simulator_binary()} | grep 'not found'\n"
+            "On Debian/Ubuntu the one most often missing is libwebkit2gtk-4.1-0."
+        )
+
     def wait_for(self, pattern: str, timeout: float = 20.0) -> bool:
         """Block until the console matches, or a Lua error makes waiting pointless.
 

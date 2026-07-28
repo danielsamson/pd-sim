@@ -20,8 +20,16 @@ jobs:
 
       # xvfb gives the Simulator a display; openbox gives it a FOCUS MODEL, without
       # which SDL reads no keyboard and every injected press vanishes silently;
-      # xdotool does the injecting.
-      - run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb openbox xdotool
+      # xdotool does the injecting; imagemagick's `import` takes window screenshots.
+      #
+      # libwebkit2gtk is the one that is easy to miss: the Simulator links it, and
+      # without it the process starts, prints NOTHING, maps no window, and never
+      # exits — so every test fails with an empty console and "no window", which
+      # looks like the Simulator not working headlessly at all rather than a missing
+      # runtime library. The first CI run failed exactly that way.
+      - run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb openbox xdotool imagemagick libwebkit2gtk-4.1-0
 
       - name: Download the Playdate SDK
         run: |
@@ -34,6 +42,15 @@ jobs:
           echo "$(dirname "$PDC")" >> "$GITHUB_PATH"
 
       - run: pip3 install -e ".[dev]"
+
+      # Fail here, loudly, rather than in seven test teardowns. If the Simulator cannot
+      # start at all, every SDK test reports "no window" or an empty console, and none
+      # of them says why.
+      - name: The Simulator starts at all
+        run: |
+          set -eux
+          SDL_AUDIODRIVER=dummy timeout 60 xvfb-run -a \
+            "$PLAYDATE_SDK_PATH/bin/PlaydateSimulator" --help
 
       # The SDK suite is the one that matters. Everything this package claims — that a
       # Simulator runs headless, that keys arrive, that a Lua error is detectable

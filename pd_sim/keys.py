@@ -108,7 +108,12 @@ def find_window(display: str, timeout: float = 15.0) -> str:
         time.sleep(0.2)
     if best:
         return best[1]
-    raise InputError(f"no Playdate Simulator window on {display} after {timeout}s")
+    raise InputError(
+        f"no Playdate Simulator window on {display} after {timeout}s — the Simulator "
+        "is not drawing. If its console is also empty, it is almost certainly a "
+        "missing shared library rather than anything about the display; see "
+        "Simulator.diagnosis()."
+    )
 
 
 def focus(window: str, display: str) -> None:

@@ -16,7 +16,7 @@ from pathlib import Path
 
 from .channel import DEFAULT_CMD_FILE, data_dir, send
 from .display import VirtualDisplay
-from .keys import crank, find_window, focus, menu, press
+from .keys import InputError, crank, find_window, focus, menu, press
 from .simulator import RunResult, Simulator, sdk_path
 
 
@@ -43,7 +43,12 @@ class Session:
         self._sim = Simulator(self.pdx, self._display.name, self._display.env())
         self._sim.start()
         if self.interactive:
-            self._window = find_window(self._display.name)
+            try:
+                self._window = find_window(self._display.name)
+            except InputError as e:
+                # Attach what the Simulator said (or did not say). Without this the
+                # error names the display, which is the one thing that is fine.
+                raise InputError(f"{e}\n\n{self._sim.diagnosis()}") from None
             focus(self._window, self._display.name)
         return self
 
