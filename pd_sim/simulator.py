@@ -244,6 +244,24 @@ class Simulator:
             time.sleep(0.1)
         return False
 
+    def wait_for_failure(self, timeout: float = 60.0) -> bool:
+        """Block until the game raises a Lua error, or the timeout expires.
+
+        Testing an error path needs this rather than `wait_for`: the two overlap
+        awkwardly, since `wait_for` treats a failure as a reason to give up early. It
+        is also the only honest way to wait for a crash — sleeping a fixed number of
+        seconds and then checking assumes you know how long startup takes, and startup
+        is ~10x slower on a CI runner than on a developer machine.
+        """
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if FAILURE.search(self.console):
+                return True
+            if self._proc and self._proc.poll() is not None:
+                return bool(FAILURE.search(self.console))
+            time.sleep(0.1)
+        return False
+
     def stop(self) -> None:
         """Terminate. Note there is no clean in-game exit worth using: calling
         `playdate.simulator.exit()` segfaults the Linux Simulator (after flushing, so

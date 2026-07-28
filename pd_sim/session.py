@@ -69,7 +69,17 @@ class Session:
         assert self._sim
         return self._sim.wait_for(pattern, timeout)
 
+    def wait_for_failure(self, timeout: float = 60.0) -> bool:
+        """Block until the game raises a Lua error. Use this to test an error path —
+        never a fixed sleep, which bakes in an assumption about startup time that a CI
+        runner does not share."""
+        assert self._sim
+        return self._sim.wait_for_failure(timeout)
+
     def run_for(self, seconds: float) -> None:
+        """Sleep. Fine for letting a few frames elapse after an event you already
+        waited for; NOT a way to wait for something to happen — use wait_for or
+        wait_for_failure, which poll and do not assume a machine's speed."""
         time.sleep(seconds)
 
     # -- driving ---------------------------------------------------------------

@@ -73,7 +73,14 @@ def test_a_runtime_error_fails_the_run(tmp_path):
         end
     ''')
     with Session(pdx, interactive=False) as sim:
-        sim.run_for(20)
+        # POLL, do not sleep. A fixed sleep bakes in an assumption about how long
+        # startup takes, and a CI runner needs ~26s just to load the .pdx — so a
+        # 20-second sleep passed here for weeks and failed there, reporting an empty
+        # console and booted=False, which reads like the Simulator being broken rather
+        # than the test finishing before it started.
+        assert sim.wait_for_failure(timeout=90), (
+            f"no Lua error within 90s:\n{sim._sim.diagnosis()}"
+        )
         result = sim.finish()
     assert result.failed, result.console
     assert "stack traceback" in result.traceback
