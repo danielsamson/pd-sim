@@ -96,6 +96,33 @@ Two behaviours to know:
   a test asserts the filter never swallows a traceback line — because if it ever did,
   every crash would silently pass.
 
+## The first-run gate
+
+A machine that has never run the Simulator has no preferences file, and the first
+launch wants to show a newsletter sign-up and a performance warning. **While either is
+pending the Simulator emits almost nothing on stdout** — no game `print()`, not even
+its own `SDK:` / `Release:` / `CMD:` header. Errors still come through, because they
+are wired up unconditionally.
+
+That combination is worse than plain silence. The game is running perfectly: drawing,
+responding to input, writing screenshots. It just cannot be heard. So:
+
+- every `wait_for()` times out against a healthy game
+- a test asserting on a *file* passes while every console test fails
+- a CRASHED game reports its traceback, so error handling looks fine
+
+Which reads as "console capture is broken", not "console capture is gated".
+
+`suppress_first_run_dialogs()` writes `ShowElist=0` and `ShowPerfWarning=0` before
+launch, preserving anything else in the file. That is better than dismissing the
+dialog with a click at fixed coordinates (which is what GrainShift's `tools/shoot.sh`
+does): no window needs to exist, and it does not depend on theme or window size.
+
+**Every developer machine passes this by accident**, because its first run wrote the
+setting years ago. Only CI is ever genuinely clean.
+`test_it_works_on_a_machine_that_has_never_run_the_simulator` points `XDG_CONFIG_HOME`
+at an empty directory so the suite can see what a fresh machine sees.
+
 ## What this does not give you
 
 Console output is a **stream**, not a protocol. It cannot tell you which line answered

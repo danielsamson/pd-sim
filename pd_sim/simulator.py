@@ -38,6 +38,57 @@ NOISE = re.compile(
 FAILURE = re.compile(r"Update error:|stack traceback:|Update failed, simulator paused")
 
 
+def settings_file() -> Path:
+    """The Simulator's own preferences file (Linux)."""
+    config = os.environ.get("XDG_CONFIG_HOME") or str(Path.home() / ".config")
+    return Path(config) / "Playdate Simulator" / "Playdate Simulator.ini"
+
+
+def suppress_first_run_dialogs() -> Path:
+    """Write the two settings that stop the Simulator holding back its console.
+
+    On a machine that has never run the Simulator there is no preferences file, and
+    the first launch wants to show its newsletter sign-up and a performance warning.
+    While either is pending the Simulator emits almost NOTHING on stdout: no `print()`
+    from the game, not even its own `SDK:` / `Release:` / `CMD:` header. Errors still
+    come through — they are wired up unconditionally — so a crashed game reports its
+    traceback while a healthy one appears silent.
+
+    That combination is genuinely confusing. The game runs: it draws, it responds to
+    input, `writeToFile` produces a screenshot. It simply cannot be heard. Every
+    wait_for() times out against a game working perfectly, and the one test that
+    asserts on a FILE rather than the console passes, which makes it look like the
+    console is broken rather than gated.
+
+    This is the same first-run dialog GrainShift's tools/shoot.sh dismisses with a
+    hardcoded `xdotool mousemove 663 490 click 1`. Writing the setting is better than
+    clicking at a coordinate: no window has to exist, nothing depends on the theme or
+    the window size, and it works before the Simulator has drawn anything.
+
+    Existing settings are preserved — only these two keys are set.
+    """
+    path = settings_file()
+    wanted = {"ShowElist": "0", "ShowPerfWarning": "0"}
+
+    lines = path.read_text().splitlines() if path.exists() else []
+    seen = set()
+    out = []
+    for line in lines:
+        key = line.split("=", 1)[0].strip()
+        if key in wanted:
+            out.append(f"{key}={wanted[key]}")
+            seen.add(key)
+        else:
+            out.append(line)
+
+    # New keys go at the TOP: the file has [LastUsed] and other sections, and a bare
+    # key appended after a section header belongs to that section, not the root.
+    missing = [f"{k}={v}" for k, v in wanted.items() if k not in seen]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(missing + out) + "\n")
+    return path
+
+
 def sdk_path() -> Path:
     return Path(os.environ.get("PLAYDATE_SDK_PATH", "~/Developer/PlaydateSDK")).expanduser()
 
@@ -99,6 +150,11 @@ class Simulator:
     def start(self) -> None:
         if not self.pdx.exists():
             raise FileNotFoundError(f"no such .pdx: {self.pdx}")
+
+        # Before anything launches: a first-run Simulator withholds its console until
+        # its sign-up dialog is dealt with, and a silent game is indistinguishable from
+        # a broken one. See suppress_first_run_dialogs.
+        suppress_first_run_dialogs()
 
         # A PTY, not a pipe. The Simulator uses stdio's default buffering, which is
         # FULLY buffered when stdout is not a terminal — so through a plain pipe it

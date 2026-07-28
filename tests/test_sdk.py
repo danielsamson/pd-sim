@@ -341,3 +341,31 @@ def test_the_widget_offset_is_still_right(tmp_path):
             f"for this window manager:\n{sim.console}"
         )
         sim.finish()
+
+
+def test_it_works_on_a_machine_that_has_never_run_the_simulator(tmp_path, monkeypatch):
+    """The first-run gate, which only a clean machine has.
+
+    Point the Simulator's config at an empty directory and it behaves like a fresh
+    install: it wants to show a newsletter dialog, and while that is pending it emits
+    almost nothing on stdout — no game print(), not even its own SDK/Release header.
+    Errors still come through, so a CRASHED game reports a traceback while a healthy
+    one looks silent.
+
+    Every developer machine passes this by accident, because the first run wrote the
+    setting. Only CI is ever genuinely clean, which is exactly where it bit.
+    """
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "fresh-config"))
+
+    pdx = build(tmp_path, '''
+        import "CoreLibs/graphics"
+        print("READY")
+        function playdate.update() end
+    ''', name="firstrun")
+
+    with Session(pdx, interactive=False) as sim:
+        assert sim.wait_for("READY", timeout=90), (
+            "no console on a first-run profile — suppress_first_run_dialogs is not "
+            f"working:\n{sim._sim.diagnosis()}"
+        )
+        sim.finish()
