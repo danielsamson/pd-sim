@@ -82,11 +82,28 @@ with Session("game.pdx") as sim:
 | Menu | `Escape` | fires `gameWillPause`; **the game stops updating** until sent again |
 | crank | mouse wheel | 4° per click; the first turn also undocks it |
 | Lock | — | no known input; not simulated |
-| accelerometer | — | not solved; `playdate.readAccelerometer` needs a device or the Simulator's own UI |
+| accelerometer | partial | **reads** fine headless (`x=0 y=1 z=0`, upright). Tilting it is reachable but not yet reproducible — see below |
 
 All of it is measured against Simulator 3.1.1, not documented — `pd-sim keys` prints
 the map, and `tests/test_hardware.py` re-measures it, so a Simulator update that
 changes a binding fails a test instead of silently breaking every suite downstream.
+
+### The accelerometer, precisely
+
+`playdate.startAccelerometer()` works in a headless Simulator and
+`readAccelerometer()` returns a real upright reading, so a game that *reads* tilt runs
+fine and can be tested for everything except its response to motion.
+
+Changing the value is unfinished, and the honest state is: it happened once. A
+ctrl-drag across the device body moved it from `x=0.000 y=1.000` to `x=0.906
+y=-0.424` — unmistakably a tilt. Repeating that same gesture in isolation does
+nothing, twice over, and neither do plain, shift or alt drags. The one success came
+after three other drags, so something stateful is likely involved that has not been
+identified.
+
+Until there is a gesture that works every time, there is no `tilt()` here. An input
+method that works one attempt in five is worse than none: it turns every failure into
+a question about the harness rather than the game.
 
 ## Three things that cost real time
 

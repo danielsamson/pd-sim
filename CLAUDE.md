@@ -39,7 +39,13 @@ Do not describe pd-sim as replacing either neighbour. It is x86 running an inter
 | Menu | `Escape` — fires `gameWillPause` and **stops the update loop** until sent again |
 | crank | mouse wheel over the window, 4°/click; the first turn undocks |
 | Lock | no known input |
-| accelerometer | unsolved |
+| accelerometer | READS fine headless; tilting it is reachable but not reproducible |
+
+On the accelerometer: a ctrl-drag once moved it from `x=0 y=1` to `x=0.906 y=-0.424`,
+and the identical gesture in isolation has never worked since. The one success followed
+three other drags, so suspect Simulator state rather than the gesture. Do not ship a
+`tilt()` until it is reliable — a flaky input turns every downstream failure into a
+question about the harness instead of the game.
 
 `tests/test_sdk.py` re-measures this against a real Simulator, so a rebinding fails a
 test rather than silently breaking downstream suites. Keep it that way.
