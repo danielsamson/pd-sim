@@ -25,6 +25,9 @@ Do not describe pd-sim as replacing either neighbour. It is x86 running an inter
   carries arguments, no focus involved. Keystrokes are the zero-cooperation tier.
 - **stdout must be a PTY.** The Simulator's stdio is fully buffered when stdout is not a
   terminal, so over a plain pipe nothing arrives until it exits — and it does not exit.
+  This is THE fact that makes console capture possible at all; the received wisdom is
+  that it is not (true on macOS, where the .app relaunches detached). See
+  docs/CONSOLE.md before repeating that research.
 - **Two windows match "Playdate".** A 10×10 decoy maps FIRST, then the real ~482×706
   one. Pick by area, and wait for one big enough to be real.
 - **Judge a run by its console, never its exit code.** A crashed game is *paused*, not

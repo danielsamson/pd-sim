@@ -54,6 +54,13 @@ Update failed, simulator paused.
 That is a real test signal, and it is available on every merge instead of once a week
 when someone plugs in a cable.
 
+Searching for this turns up that it cannot be done — which is true on macOS and false
+on Linux, for one reason: **stdout must be a pty, not a pipe.** Through a pipe the
+Simulator block-buffers and flushes on exit, and it never exits, so you get an empty
+capture from a program that is printing fine. [docs/CONSOLE.md](docs/CONSOLE.md) has
+the whole picture, including why the macOS answer is genuinely different rather than
+just harder.
+
 ## What it is not
 
 **Not a substitute for the device.** This is x86 running an interpreter, not a 168MHz
