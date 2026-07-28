@@ -1,0 +1,30 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pd-sim"
+version = "0.1.0"
+description = "Drive a Playdate Simulator headlessly — run, press, crank, screenshot, assert"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+# Stdlib only. The heavy lifting is Xvfb, a window manager and xdotool, which are
+# system packages -- a pip dependency could not supply them anyway.
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+pd-sim = "pd_sim.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["pd_sim"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+  "sdk: needs the Playdate SDK and a virtual display (deselected by default)",
+]
+addopts = "-m 'not sdk'"

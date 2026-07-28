@@ -1,0 +1,43 @@
+name: test
+# Merge-gated and manual, ONE job. GitHub bills each job rounded UP to a full minute,
+# so splitting this would cost more than it saves. Working branches are verified
+# locally; CI is the gate at integration.
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**/*.md"]
+  workflow_dispatch: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # xvfb gives the Simulator a display; openbox gives it a FOCUS MODEL, without
+      # which SDL reads no keyboard and every injected press vanishes silently;
+      # xdotool does the injecting.
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb openbox xdotool
+
+      - name: Download the Playdate SDK
+        run: |
+          set -eux
+          curl -fSL -o sdk.tar.gz \
+            https://download.panic.com/playdate_sdk/Linux/PlaydateSDK-latest.tar.gz
+          mkdir sdk && tar -xzf sdk.tar.gz -C sdk
+          PDC="$(find "$PWD/sdk" -type f -name pdc | head -1)"
+          echo "PLAYDATE_SDK_PATH=$(dirname "$(dirname "$PDC")")" >> "$GITHUB_ENV"
+          echo "$(dirname "$PDC")" >> "$GITHUB_PATH"
+
+      - run: pip3 install -e ".[dev]"
+
+      # The SDK suite is the one that matters. Everything this package claims — that a
+      # Simulator runs headless, that keys arrive, that a Lua error is detectable
+      # without a device — is only true if these pass, so they are not optional here
+      # even though they are deselected by default locally.
+      - name: The Simulator runs headless, and answers
+        run: python3 -m pytest -q -m "sdk or not sdk"
