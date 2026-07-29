@@ -110,7 +110,7 @@ class Session:
         assert self._window
         return crank(degrees, self._display.name, self._window)
 
-    def send(self, command: str, cmd_file: str = DEFAULT_CMD_FILE) -> None:
+    def send(self, command: str, cmd_file: str | None = None) -> None:
         """Send a command line to the running game — the way to pass VALUES.
 
         `press("a")` can only press a button; this can say `set 2.cut 0.4`. It needs

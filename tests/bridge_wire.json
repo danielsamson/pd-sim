@@ -1,21 +1,53 @@
 {
   "_source": "The wire convention shared by bridge.lua (the game-side producer) and its host drivers, pd-link and pd-sim. This file is byte-identical in both repos; bridge.lua is normative. To change the format you change bridge.lua, BOTH copies, and every conformance test below re-passes — a diff between the two copies is the drift this exists to catch.",
   "data_dir": "{sdk}/Disk/Data/{bundle_id}",
-  "default_cmd_file": "mcp_cmd.txt",
-  "default_out_file": "mcp_out.txt",
+  "default_cmd_file": "bridge_cmd.txt",
+  "default_out_file": "bridge_out.txt",
+  "_legacy": "The channel's original names, from when it lived in playdate-mcp. A game polls both so a host one version out still reaches it; a host picks ONE and only retries under the other after proving the first went unread.",
+  "legacy_cmd_file": "mcp_cmd.txt",
+  "legacy_out_file": "mcp_out.txt",
+  "ready_line": "[rc] bridge ready cmd=bridge_cmd.txt",
   "pdxinfo": {
     "content": "name=Test Game\nauthor=danielsamson\nbundleID=com.test.game\nversion=1.0\n",
     "bundle_id": "com.test.game"
   },
   "commands": [
-    {"tag": null, "command": "preset eno", "wire": "preset eno"},
-    {"tag": null, "command": "set 2.cut 0.4", "wire": "set 2.cut 0.4"},
-    {"tag": 7, "command": "dump", "wire": "#7 dump"},
-    {"tag": 42, "command": "set bpm 96", "wire": "#42 set bpm 96"}
+    {
+      "tag": null,
+      "command": "preset eno",
+      "wire": "preset eno"
+    },
+    {
+      "tag": null,
+      "command": "set 2.cut 0.4",
+      "wire": "set 2.cut 0.4"
+    },
+    {
+      "tag": 7,
+      "command": "dump",
+      "wire": "#7 dump"
+    },
+    {
+      "tag": 42,
+      "command": "set bpm 96",
+      "wire": "#42 set bpm 96"
+    }
   ],
   "replies": [
-    {"tag": 7, "text": "{\"bpm\": 96}", "wire": "[rc#7] {\"bpm\": 96}"},
-    {"tag": 42, "text": "bpm 96", "wire": "[rc#42] bpm 96"},
-    {"tag": null, "text": "pong", "wire": "[rc] pong"}
+    {
+      "tag": 7,
+      "text": "{\"bpm\": 96}",
+      "wire": "[rc#7] {\"bpm\": 96}"
+    },
+    {
+      "tag": 42,
+      "text": "bpm 96",
+      "wire": "[rc#42] bpm 96"
+    },
+    {
+      "tag": null,
+      "text": "pong",
+      "wire": "[rc] pong"
+    }
   ]
 }

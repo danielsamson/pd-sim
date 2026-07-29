@@ -91,8 +91,8 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--send", action="append", metavar="COMMAND",
                      help="a command line for the game to poll (repeatable). Carries "
                           "VALUES, unlike --press; needs the game to poll its command file")
-    run.add_argument("--cmd-file", default="mcp_cmd.txt",
-                     help="the file the game polls (bridge.lua default: mcp_cmd.txt)")
+    run.add_argument("--cmd-file", default=None,
+                     help="the file the game polls (default: whichever the game says it uses)")
     run.add_argument("--shot", metavar="PATH",
                      help="capture the Simulator window (any .pdx, no cooperation; "
                           "includes chrome). For the exact framebuffer use --await")

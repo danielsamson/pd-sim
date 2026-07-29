@@ -7,8 +7,8 @@ directory, which the host can write to and the game can read while it runs:
     SDK/Disk/Data/<bundleID>/<cmdfile>
 
 The host appends a line; the game polls the file each frame and executes it. That is
-the convention `bridge.lua` standardizes (its default file is `mcp_cmd.txt`), and it
-is what `pd-link serve` uses to drive a Simulator.
+the convention `bridge.lua` standardizes, and it is what `pd-link serve` uses to
+drive a Simulator.
 
 Prefer it over `press()` wherever both would work. It is deterministic — no focus, no
 window, no timing, no key map — and it carries arguments, so one call sets a parameter
@@ -25,7 +25,21 @@ from pathlib import Path
 
 # bridge.lua's default. A game may choose another (GrainShift polls "gs_cmd.txt"), so
 # this is a default, never an assumption.
-DEFAULT_CMD_FILE = "mcp_cmd.txt"
+DEFAULT_CMD_FILE = "bridge_cmd.txt"
+DEFAULT_OUT_FILE = "bridge_out.txt"
+
+# The same channel under the name it was born with. It was called mcp_* because the
+# convention was invented inside playdate-mcp, before bridge.lua was extracted into
+# pd-link and this and pd-link's sim ops adopted it -- so a control path every
+# Simulator-hosted game uses looked like an integration most projects never run. A game
+# pinned to an older bridge.lua still polls the old name, so resolve_channel picks the
+# pair per game instead of assuming one.
+LEGACY_CMD_FILE = "mcp_cmd.txt"
+LEGACY_OUT_FILE = "mcp_out.txt"
+
+# bridge.lua opens its reply file with this, naming the command file it polls, so a
+# host can read the answer rather than guess it.
+_READY = re.compile(r"^\[rc\]\s+bridge ready cmd=(\S+)\s*$", re.MULTILINE)
 
 _BUNDLE_ID = re.compile(r"^bundleID\s*=\s*(\S+)\s*$", re.MULTILINE | re.IGNORECASE)
 
@@ -56,13 +70,32 @@ def data_dir(pdx: Path, sdk: Path) -> Path:
     return Path(sdk) / "Disk" / "Data" / bundle_id(pdx)
 
 
-def send(command: str, pdx: Path, sdk: Path, cmd_file: str = DEFAULT_CMD_FILE) -> Path:
+def resolve_channel(pdx: Path, sdk: Path) -> tuple[str, str, str]:
+    """Which (command, reply) filenames this game actually uses, and how we know.
+
+    Preference order is evidence, not guesswork: a reply file that NAMES its command
+    file wins; then a reply file that merely exists, which pairs by convention; then
+    the new default, for a game that has written nothing yet.
+    """
+    home = data_dir(pdx, sdk)
+    for cmd, out in ((DEFAULT_CMD_FILE, DEFAULT_OUT_FILE), (LEGACY_CMD_FILE, LEGACY_OUT_FILE)):
+        path = home / out
+        if path.exists() and path.stat().st_size:
+            match = _READY.search(path.read_text(errors="replace"))
+            return (match.group(1) if match else cmd, out,
+                    "announced" if match else f"{out} exists")
+    return DEFAULT_CMD_FILE, DEFAULT_OUT_FILE, "default (game has written nothing yet)"
+
+
+def send(command: str, pdx: Path, sdk: Path, cmd_file: str | None = None) -> Path:
     """Append one command line for the running game to pick up.
 
     Appends rather than overwrites: the game consumes the file at its own polling rate
     (bridge.lua defaults to every 15 frames), so a second command written a moment
     later must queue behind the first rather than erase it unread.
     """
+    if cmd_file is None:
+        cmd_file, _, _ = resolve_channel(pdx, sdk)
     target = data_dir(pdx, sdk)
     target.mkdir(parents=True, exist_ok=True)
     path = target / cmd_file

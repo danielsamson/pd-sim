@@ -55,3 +55,11 @@ def test_bundle_id_parsed_from_pdxinfo(tmp_path):
     pdx.mkdir()
     (pdx / "pdxinfo").write_text(case["content"])
     assert channel.bundle_id(pdx) == case["bundle_id"]
+
+
+def test_the_legacy_channel_names_are_pinned_too():
+    """Both names are part of the contract until every game has moved off the old one.
+    Dropping the legacy pair from either implementation strands a pinned bridge.lua."""
+    assert channel.LEGACY_CMD_FILE == WIRE["legacy_cmd_file"]
+    assert channel.LEGACY_OUT_FILE == WIRE["legacy_out_file"]
+    assert channel.DEFAULT_OUT_FILE == WIRE["default_out_file"]

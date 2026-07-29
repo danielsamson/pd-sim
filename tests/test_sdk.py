@@ -208,8 +208,11 @@ def test_values_reach_a_running_game(tmp_path, monkeypatch):
         local cut = 0.0
         local frame = 0
         print("READY")
-        local function poll()
-            local f = playdate.file.open("mcp_cmd.txt", playdate.file.kFileRead)
+        -- Both channel names, as bridge.lua does: the file was renamed from mcp_cmd.txt
+        -- (which came from playdate-mcp) to bridge_cmd.txt, and a game has to answer
+        -- either so a host one version out still reaches it.
+        local function drain(name)
+            local f = playdate.file.open(name, playdate.file.kFileRead)
             if not f then return end
             local line = f:readline()
             while line do
@@ -218,8 +221,9 @@ def test_values_reach_a_running_game(tmp_path, monkeypatch):
                 line = f:readline()
             end
             f:close()
-            playdate.file.delete("mcp_cmd.txt")
+            playdate.file.delete(name)
         end
+        local function poll() drain("bridge_cmd.txt"); drain("mcp_cmd.txt") end
         function playdate.update()
             frame = frame + 1
             if frame % 15 == 0 then poll() end
@@ -231,10 +235,17 @@ def test_values_reach_a_running_game(tmp_path, monkeypatch):
 
     with Session(pdx, interactive=False) as sim:
         assert sim.wait_for("READY", timeout=90), sim.console
-        sim.send("set 2.cut 0.4")
+        sim.send("set 2.cut 0.4")               # the resolved default: bridge_cmd.txt
         assert sim.wait_for(r"SET 2\.cut=0\.4", timeout=15), sim.console
+        assert (data / "bridge_cmd.txt").exists() is False, "the game consumed the new name"
+
         sim.send("set 2.cut 0.9")
         assert sim.wait_for(r"SET 2\.cut=0\.9", timeout=15), sim.console
+
+        # And the legacy name still drives a game, which is what makes the rename safe
+        # for a project pinned to an older bridge.lua.
+        sim.send("set 2.cut 0.2", cmd_file="mcp_cmd.txt")
+        assert sim.wait_for(r"SET 2\.cut=0\.2", timeout=15), sim.console
         sim.finish()
 
 
