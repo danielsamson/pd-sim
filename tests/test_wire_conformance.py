@@ -47,3 +47,11 @@ def test_untagged_command_encoding(tmp_path, case):
     pdx = _pdx(tmp_path)
     path = channel.send(case["command"], pdx, tmp_path)
     assert path.read_text() == case["wire"] + "\n"
+
+
+def test_bundle_id_parsed_from_pdxinfo(tmp_path):
+    case = WIRE["pdxinfo"]
+    pdx = tmp_path / "Game.pdx"
+    pdx.mkdir()
+    (pdx / "pdxinfo").write_text(case["content"])
+    assert channel.bundle_id(pdx) == case["bundle_id"]

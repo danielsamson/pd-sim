@@ -3,6 +3,10 @@
   "data_dir": "{sdk}/Disk/Data/{bundle_id}",
   "default_cmd_file": "mcp_cmd.txt",
   "default_out_file": "mcp_out.txt",
+  "pdxinfo": {
+    "content": "name=Test Game\nauthor=danielsamson\nbundleID=com.test.game\nversion=1.0\n",
+    "bundle_id": "com.test.game"
+  },
   "commands": [
     {"tag": null, "command": "preset eno", "wire": "preset eno"},
     {"tag": null, "command": "set 2.cut 0.4", "wire": "set 2.cut 0.4"},
